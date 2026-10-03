@@ -117,6 +117,7 @@ void WebviewWindow::CreateAndShow(const std::wstring &title, int height, int wid
              rc.bottom - rc.top - title_bar_height,
              true);
   ShowWindow(web_view_handle, SW_SHOW);
+  web_view_->UpdateBounds();
 
   // Create the title bar view.
   std::vector<std::string> args = {"web_view_title_bar", std::to_string(window_id_)};

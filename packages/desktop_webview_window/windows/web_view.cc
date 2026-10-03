@@ -24,6 +24,13 @@ namespace webview_window {
 static LRESULT CALLBACK WndProc(HWND const window, UINT const message,
                                 WPARAM const wparam,
                                 LPARAM const lparam) noexcept {
+  if (message == WM_SIZE) {
+    auto that = reinterpret_cast<WebView *>(GetWindowLongPtr(window, GWLP_USERDATA));
+    if (that) {
+      that->UpdateBounds();
+
+    }
+  }
   return DefWindowProc(window, message, wparam, lparam);
 }
 
@@ -49,6 +56,7 @@ WebView::WebView(
     on_web_view_created_callback_(S_FALSE);
     return;
   }
+  SetWindowLongPtr(view_window_.get(), GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 
   CreateCoreWebView2EnvironmentWithOptions(
       nullptr, user_data_folder_.c_str(), nullptr,
@@ -164,34 +172,21 @@ void WebView::OnWebviewControllerCreated() {
                 std::make_unique<flutter::EncodableValue>(flutter::EncodableMap{
                     {flutter::EncodableValue("id"),
                      flutter::EncodableValue(web_view_id_)},
-                }));
-
-            if (triggerOnUrlRequestedEvent) {
-              wil::unique_cotaskmem_string uri;
-              HRESULT hr = args->get_Uri(&uri);
-              if (FAILED(hr) || !uri) {
-                args->put_Cancel(true);
-                return S_OK;
-              }
-
-              // Capture URI string before async callback
+                }));            wil::unique_cotaskmem_string uri;
+            HRESULT hr = args->get_Uri(&uri);
+            if (SUCCEEDED(hr) && uri) {
               std::wstring uri_string(uri.get());
+              std::string url_utf8 = wide_to_utf8(uri_string);
 
-              auto result_handler =
-                  std::make_unique<flutter::MethodResultFunctions<>>(
-                      [uri_string, sender,
-                       this](const flutter::EncodableValue *success_value) {
-                        bool letPass = false;
-                        if (success_value && 
-                            std::holds_alternative<bool>(*success_value)) {
-                          letPass = std::get<bool>(*success_value);
-                        }
-                        if (letPass) {
-                          this->setTriggerOnUrlRequestedEvent(false);
-                          sender->Navigate(uri_string.c_str());
-                        }
-                      },
-                      nullptr, nullptr);
+              // Cancel navigation only for non-standard schemes (like app deep links e.g. m6loapp://)
+              // so WebView2 does not error on unknown protocol, while allowing normal http/https/file navigations.
+              bool is_standard_scheme = (url_utf8.rfind("http://", 0) == 0 ||
+                                         url_utf8.rfind("https://", 0) == 0 ||
+                                         url_utf8.rfind("file://", 0) == 0 ||
+                                         url_utf8.rfind("about:", 0) == 0);
+              if (!is_standard_scheme) {
+                args->put_Cancel(true);
+              }
 
               method_channel_->InvokeMethod(
                   "onUrlRequested",
@@ -200,17 +195,8 @@ void WebView::OnWebviewControllerCreated() {
                           {flutter::EncodableValue("id"),
                            flutter::EncodableValue(web_view_id_)},
                           {flutter::EncodableValue("url"),
-                           flutter::EncodableValue(
-                               wide_to_utf8(uri_string))},
-                      }),
-                  std::move(result_handler));
-
-              // navigation is canceled here and retriggered later from the
-              // callback passed to the method channel
-              args->put_Cancel(true);
-            } else {
-              args->put_Cancel(false);
-              triggerOnUrlRequestedEvent = true;
+                           flutter::EncodableValue(url_utf8)},
+                      }));
             }
             return S_OK;
           })

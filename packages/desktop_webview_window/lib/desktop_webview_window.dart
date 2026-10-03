@@ -64,6 +64,11 @@ class WebviewWindow {
   }) async {
     configuration ??= CreateConfiguration.platform();
     _init();
+    if (configuration.singleInstance && _webviews.isNotEmpty) {
+      final existing = _webviews.last;
+      await existing.bringToForeground();
+      return existing;
+    }
     final viewId = await _channel.invokeMethod(
       "create",
       configuration.toMap(),

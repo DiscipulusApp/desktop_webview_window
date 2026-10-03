@@ -203,40 +203,93 @@ class _TitleBarAppState extends State<_TitleBarApp>
 Widget _defaultTitleBar(BuildContext context) {
   final state = TitleBarWebViewState.of(context);
   final controller = TitleBarWebViewController.of(context);
-  return Row(
-    crossAxisAlignment: CrossAxisAlignment.center,
+  final theme = Theme.of(context);
+  return Stack(
     children: [
-      IconButton(
-        padding: EdgeInsets.zero,
-        splashRadius: 16,
-        iconSize: 16,
-        onPressed: !state.canGoBack ? null : controller.back,
-        icon: const Icon(Icons.arrow_back),
-      ),
-      IconButton(
-        padding: EdgeInsets.zero,
-        splashRadius: 16,
-        iconSize: 16,
-        onPressed: !state.canGoForward ? null : controller.forward,
-        icon: const Icon(Icons.arrow_forward),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            IconButton(
+              padding: EdgeInsets.zero,
+              splashRadius: 16,
+              iconSize: 18,
+              onPressed: !state.canGoBack ? null : controller.back,
+              icon: const Icon(Icons.arrow_back),
+              tooltip: 'Terug',
+            ),
+            IconButton(
+              padding: EdgeInsets.zero,
+              splashRadius: 16,
+              iconSize: 18,
+              onPressed: !state.canGoForward ? null : controller.forward,
+              icon: const Icon(Icons.arrow_forward),
+              tooltip: 'Verder',
+            ),
+            if (state.isLoading)
+              IconButton(
+                padding: EdgeInsets.zero,
+                splashRadius: 16,
+                iconSize: 18,
+                onPressed: controller.stop,
+                icon: const Icon(Icons.close),
+                tooltip: 'Stoppen',
+              )
+            else
+              IconButton(
+                padding: EdgeInsets.zero,
+                splashRadius: 16,
+                iconSize: 18,
+                onPressed: controller.reload,
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Vernieuwen',
+              ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Row(
+                children: [
+                  if (state.isLoading) ...[
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Laden...',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ] else if (state.url != null) ...[
+                    Expanded(
+                      child: Text(
+                        Uri.tryParse(state.url ?? '')?.host ?? state.url!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       if (state.isLoading)
-        IconButton(
-          padding: EdgeInsets.zero,
-          splashRadius: 16,
-          iconSize: 16,
-          onPressed: controller.stop,
-          icon: const Icon(Icons.close),
-        )
-      else
-        IconButton(
-          padding: EdgeInsets.zero,
-          splashRadius: 16,
-          iconSize: 16,
-          onPressed: controller.reload,
-          icon: const Icon(Icons.refresh),
+        const Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: SizedBox(
+            height: 2.5,
+            child: LinearProgressIndicator(),
+          ),
         ),
-      const Spacer()
     ],
   );
 }
