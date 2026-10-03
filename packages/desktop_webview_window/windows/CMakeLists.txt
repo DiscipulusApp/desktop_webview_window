@@ -31,9 +31,21 @@ target_include_directories(${PLUGIN_NAME} INTERFACE
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(${PLUGIN_NAME} PRIVATE flutter flutter_wrapper_plugin flutter_wrapper_app)
 
+# Determine target architecture (arm64, x64, or x86)
+string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR} ${CMAKE_GENERATOR_PLATFORM} ${FLUTTER_TARGET_PLATFORM}" ARCH_STRING)
+if(ARCH_STRING MATCHES "arm64|aarch64")
+    set(WEBVIEW2_ARCH "arm64")
+elseif(ARCH_STRING MATCHES "x86|win32|i686|i386")
+    set(WEBVIEW2_ARCH "x86")
+else()
+    set(WEBVIEW2_ARCH "x64")
+endif()
+
+message(STATUS "desktop_webview_window: Using WebView2 architecture: ${WEBVIEW2_ARCH}")
+
 add_library(Webview2 SHARED IMPORTED GLOBAL)
-SET_PROPERTY(TARGET Webview2 PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/libs/x64/Webview2Loader.dll)
-SET_PROPERTY(TARGET Webview2 PROPERTY IMPORTED_IMPLIB ${CMAKE_CURRENT_SOURCE_DIR}/libs/x64/Webview2Loader.dll.lib)
+set_property(TARGET Webview2 PROPERTY IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/libs/${WEBVIEW2_ARCH}/WebView2Loader.dll")
+set_property(TARGET Webview2 PROPERTY IMPORTED_IMPLIB "${CMAKE_CURRENT_SOURCE_DIR}/libs/${WEBVIEW2_ARCH}/WebView2Loader.dll.lib")
 
 target_link_libraries(${PLUGIN_NAME} PRIVATE Webview2 uxtheme)
 
